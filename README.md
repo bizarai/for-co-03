@@ -1,7 +1,5 @@
 # Route Visualization App
 
-**Version: 1.0.0-secure** - *API keys are secure and Map is loaded properly*
-
 This web application allows users to visualize routes between locations using natural language queries. It leverages the Mapbox API for mapping and routing, and the Google Gemini API for natural language processing.
 
 ## Features
@@ -11,7 +9,6 @@ This web application allows users to visualize routes between locations using na
 - Route preferences (avoid tolls, highways, ferries)
 - Different transportation modes (driving, walking, cycling)
 - Interactive map visualization
-- **Secure API key handling** - All API keys are handled server-side
 
 ## How to Use
 
@@ -56,13 +53,3 @@ To run this project locally:
 1. Clone the repository
 2. Rename `config-template.js` to `config.js` and add your API keys
 3. Open `index.html` in your browser or use a local server
-
-## GitHub Pages Deployment
-
-This application is deployed on GitHub Pages. Since GitHub Pages only supports static websites, you'll need to use the server-side version locally for full functionality with secure API key handling.
-
-Visit the live demo: [Route Visualization App](https://your-username.github.io/route-visualization-app/)
-
-*Note: The GitHub Pages version is clearly marked with a version badge (v1.0.0-secure) indicating that API keys are securely handled and maps are properly loaded.*
-
-For detailed deployment instructions, see [GITHUB_PAGES.md](GITHUB_PAGES.md).
