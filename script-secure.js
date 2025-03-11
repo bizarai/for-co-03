@@ -1,46 +1,55 @@
 // Import configuration and NLP module
-import config from './config-github.js';
-import { processNaturalLanguage } from './nlp.js';
+import { processNaturalLanguage } from './nlp-secure.js';
 
-const mapboxToken = config.mapbox.token;
+// Initialize map variable to be defined after fetching the token
+let map;
 
-mapboxgl.accessToken = mapboxToken;
+// Fetch the Mapbox token from the server securely
+fetch('/api/config/mapbox')
+  .then(response => response.json())
+  .then(data => {
+    // Set the Mapbox access token using the server's secure endpoint
+    mapboxgl.accessToken = data.token;
+    
+    // Initialize Mapbox with the token
+    map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [-122.42136449, 37.80176523], // Center the map on San Francisco
+      zoom: 8
+    });
 
-const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v12',
-  center: [-122.42136449, 37.80176523], // Center the map on San Francisco
-  zoom: 8
-});
+    map.on('load', () => {
+      console.log('Map loaded');
+      map.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: []
+          }
+        }
+      });
 
-map.on('load', () => {
-  console.log('Map loaded');
-  map.addSource('route', {
-    type: 'geojson',
-    data: {
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: []
-      }
-    }
+      map.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#00a0f0',
+          'line-width': 3
+        }
+      });
+      console.log('Layer added');
+    });
   });
 
-  map.addLayer({
-    id: 'route-line',
-    type: 'line',
-    source: 'route',
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
-    },
-    paint: {
-      'line-color': '#00a0f0',
-      'line-width': 3
-    }
-  });
-  console.log('Layer added');
-});
+
 
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-button');
@@ -79,7 +88,8 @@ searchButton.addEventListener('click', async () => {
   }
 });
 
-const geocodingUrl = 'https://api.mapbox.com/geocoding/v5/mapbox.places/';
+// Updated to use our proxy endpoint instead of direct Mapbox API
+const geocodingUrl = '/api/geocode/';
 
 /**
  * Get route coordinates based on input and preferences
@@ -126,11 +136,7 @@ function getRouteCoordinates(input, preferences = null, isLocationArray = false)
       .filter(location => location.length > 0);
     
     // 3. Handle the case where we have a "from" prefix but only one location
-    // This fixes the issue where "From Paris to London" was centering on Paris
     if (startsWithFrom && locations.length === 1) {
-      // If we only have one location after removing "from", it might be because
-      // the query was something like "From Paris" without a destination
-      // In this case, we should just use the location as is
       console.log('Single location with "from" prefix detected');
     }
     
@@ -155,9 +161,9 @@ function getRouteCoordinates(input, preferences = null, isLocationArray = false)
     return;
   }
 
-  // Now we need to geocode each location
+  // Now we need to geocode each location using our proxy endpoint
   const geocodePromises = locations.map(location =>
-    fetch(`${geocodingUrl}${encodeURIComponent(location)}.json?access_token=${mapboxToken}`)
+    fetch(`${geocodingUrl}${encodeURIComponent(location)}`)
       .then(response => response.json())
       .then(data => {
         if (data.features && data.features.length > 0) {
@@ -206,31 +212,29 @@ function getRouteCoordinates(input, preferences = null, isLocationArray = false)
       }
       
       // Make sure we're using all waypoints in multi-stop routes
-      // This fixes issues like "From New York to Los Angeles to Chicago" only routing NY to Chicago
       console.log('Processing multi-stop route with all waypoints:', locations);
       
-      
-      // For routes with 2 or more locations
-      // Format coordinates string for Mapbox Directions API
+      // Format coordinates string for our proxy endpoint
       const coordinatesString = coordinates
         .map(coord => coord.join(','))
         .join(';');
       
-      const url = `https://api.mapbox.com/directions/v5/mapbox/${preferences.transportMode}/${coordinatesString}?geometries=geojson&access_token=${mapboxToken}`;
-      
-      // Add avoid parameters if specified
+      // Build the exclude parameter for the query string if needed
       const avoidParams = [];
       if (preferences.avoidTolls) avoidParams.push('tolls');
       if (preferences.avoidHighways) avoidParams.push('highways');
       if (preferences.avoidFerries) avoidParams.push('ferries');
       
+      // Construct the URL for our proxy endpoint
+      let url = `/api/directions/${preferences.transportMode}/${coordinatesString}`;
+      
       if (avoidParams.length > 0) {
-        url += `&exclude=${avoidParams.join(',')}`;
+        url += `?exclude=${avoidParams.join(',')}`;
       }
 
       console.log('Directions API URL:', url);
 
-      // Fetch route from API
+      // Fetch route from our proxy API
       fetch(url)
         .then(response => response.json())
         .then(data => {
